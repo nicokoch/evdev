@@ -5,7 +5,7 @@
 use crate::constants::EventType;
 use crate::inputid::{BusType, InputId};
 use crate::raw_stream::read_events_into_buffer;
-use crate::{sys, AttributeSetRef, InputEvent, Key, RelativeAxisType, SwitchType};
+use crate::{sys, AttributeSetRef, InputEvent, Key, LedType, RelativeAxisType, SwitchType};
 use libc::O_NONBLOCK;
 use std::fs::{File, OpenOptions};
 use std::io::{self, Write};
@@ -104,6 +104,26 @@ impl<'a> VirtualDeviceBuilder<'a> {
         for bit in switches.iter() {
             unsafe {
                 sys::ui_set_swbit(
+                    self.file.as_raw_fd(),
+                    bit.0 as nix::sys::ioctl::ioctl_param_type,
+                )?;
+            }
+        }
+
+        Ok(self)
+    }
+
+    pub fn with_leds(self, leds: &AttributeSetRef<LedType>) -> io::Result<Self> {
+        unsafe {
+            sys::ui_set_evbit(
+                self.file.as_raw_fd(),
+                crate::EventType::LED.0 as nix::sys::ioctl::ioctl_param_type,
+            )?;
+        }
+
+        for bit in leds.iter() {
+            unsafe {
+                sys::ui_set_ledbit(
                     self.file.as_raw_fd(),
                     bit.0 as nix::sys::ioctl::ioctl_param_type,
                 )?;
