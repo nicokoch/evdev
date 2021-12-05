@@ -52,6 +52,7 @@ ioctl_write_int!(ui_set_ffbit, UINPUT_IOCTL_BASE, 107);
 ioctl_write_buf!(ui_set_phys, UINPUT_IOCTL_BASE, 108, u8);
 ioctl_write_int!(ui_set_swbit, UINPUT_IOCTL_BASE, 109);
 ioctl_write_int!(ui_set_propbit, UINPUT_IOCTL_BASE, 110);
+ioctl_read_buf!(ui_get_sysname, UINPUT_IOCTL_BASE, 44, ::libc::c_char);
 
 macro_rules! eviocgbit_ioctl {
     ($mac:ident!($name:ident, $ev:ident, $ty:ty)) => {

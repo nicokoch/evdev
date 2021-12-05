@@ -8,7 +8,7 @@ use std::{io, mem};
 use crate::constants::*;
 use crate::{sys, AttributeSet, AttributeSetRef, InputEvent, InputId, Key};
 
-fn ioctl_get_cstring(
+pub(crate) fn ioctl_get_cstring(
     f: unsafe fn(RawFd, &mut [u8]) -> nix::Result<libc::c_int>,
     fd: RawFd,
 ) -> Option<Vec<u8>> {

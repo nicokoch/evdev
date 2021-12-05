@@ -212,6 +212,21 @@ impl VirtualDevice {
         self.fill_events()?;
         Ok(self.event_buf.drain(..).map(InputEvent))
     }
+
+    /// Retrieve the sysfs name directly via kernel syscall.
+    ///
+    /// The complete sysfs path is then /sys/devices/virtual/input/--NAME--
+    /// Usually, it is in the form "inputN".
+    #[inline]
+    pub fn get_sysname(&self) -> io::Result<String> {
+        use std::ffi::CStr;
+        let mut buf = [0; 64];
+        let sys_name = unsafe {
+            sys::ui_get_sysname(self.as_raw_fd(), &mut buf)?;
+            CStr::from_ptr(&buf as *const _)
+        };
+        Ok(sys_name.to_string_lossy().into())
+    }
 }
 
 impl AsRawFd for VirtualDevice {
