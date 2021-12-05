@@ -8,7 +8,10 @@ use crate::{sys, AttributeSetRef, InputEvent, Key, RelativeAxisType, SwitchType}
 use libc::O_NONBLOCK;
 use std::fs::{File, OpenOptions};
 use std::io::{self, Write};
-use std::os::unix::{fs::OpenOptionsExt, io::AsRawFd};
+use std::os::unix::{
+    fs::OpenOptionsExt,
+    io::{AsRawFd, RawFd},
+};
 
 const UINPUT_PATH: &str = "/dev/uinput";
 
@@ -168,5 +171,11 @@ impl VirtualDevice {
         self.write_raw(&[syn])?;
 
         Ok(())
+    }
+}
+
+impl AsRawFd for VirtualDevice {
+    fn as_raw_fd(&self) -> RawFd {
+        self.file.as_raw_fd()
     }
 }
