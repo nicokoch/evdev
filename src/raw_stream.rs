@@ -388,22 +388,7 @@ impl RawDevice {
     ///
     /// Returns the number of events that were read, or an error.
     pub(crate) fn fill_events(&mut self) -> io::Result<usize> {
-        let fd = self.as_raw_fd();
-        self.event_buf.reserve(crate::EVENT_BATCH_SIZE);
-
-        // TODO: use Vec::spare_capacity_mut or Vec::split_at_spare_mut when they stabilize
-        let spare_capacity = vec_spare_capacity_mut(&mut self.event_buf);
-        let spare_capacity_size = std::mem::size_of_val(spare_capacity);
-
-        // use libc::read instead of nix::unistd::read b/c we need to pass an uninitialized buf
-        let res = unsafe { libc::read(fd, spare_capacity.as_mut_ptr() as _, spare_capacity_size) };
-        let bytes_read = nix::errno::Errno::result(res)?;
-        let num_read = bytes_read as usize / mem::size_of::<libc::input_event>();
-        unsafe {
-            let len = self.event_buf.len();
-            self.event_buf.set_len(len + num_read);
-        }
-        Ok(num_read)
+        unsafe { read_events_into_buffer(self.as_raw_fd(), &mut self.event_buf) }
     }
 
     /// Fetches and returns events from the kernel ring buffer without doing synchronization on
@@ -640,6 +625,29 @@ fn vec_spare_capacity_mut<T>(v: &mut Vec<T>) -> &mut [mem::MaybeUninit<T>] {
             cap - len,
         )
     }
+}
+
+/// SAFETY: Caller must make sure that a read on the fd only returns instances of libc::input_event.
+#[allow(unused_unsafe)]
+pub(crate) unsafe fn read_events_into_buffer(
+    fd: RawFd,
+    buf: &mut Vec<libc::input_event>,
+) -> io::Result<usize> {
+    buf.reserve(crate::EVENT_BATCH_SIZE);
+
+    // TODO: use Vec::spare_capacity_mut or Vec::split_at_spare_mut when they stabilize
+    let spare_capacity = vec_spare_capacity_mut(buf);
+    let spare_capacity_size = std::mem::size_of_val(spare_capacity);
+
+    // use libc::read instead of nix::unistd::read b/c we need to pass an uninitialized buf
+    let res = unsafe { libc::read(fd, spare_capacity.as_mut_ptr() as _, spare_capacity_size) };
+    let bytes_read = nix::errno::Errno::result(res)?;
+    let num_read = bytes_read as usize / mem::size_of::<libc::input_event>();
+    unsafe {
+        let len = buf.len();
+        buf.set_len(len + num_read);
+    }
+    Ok(num_read)
 }
 
 /// Crawls `/dev/input` for evdev devices.
