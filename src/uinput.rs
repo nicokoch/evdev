@@ -4,6 +4,7 @@
 
 use crate::constants::EventType;
 use crate::inputid::{BusType, InputId};
+use crate::raw_stream::read_events_into_buffer;
 use crate::{sys, AttributeSetRef, InputEvent, Key, RelativeAxisType, SwitchType};
 use libc::O_NONBLOCK;
 use std::fs::{File, OpenOptions};
@@ -142,6 +143,7 @@ const DEFAULT_ID: libc::input_id = libc::input_id {
 
 pub struct VirtualDevice {
     file: File,
+    event_buf: Vec<libc::input_event>,
 }
 
 impl VirtualDevice {
@@ -150,7 +152,10 @@ impl VirtualDevice {
         unsafe { sys::ui_dev_setup(file.as_raw_fd(), usetup)? };
         unsafe { sys::ui_dev_create(file.as_raw_fd())? };
 
-        Ok(VirtualDevice { file })
+        Ok(VirtualDevice {
+            file,
+            event_buf: Vec::new(),
+        })
     }
 
     #[inline]
@@ -171,6 +176,21 @@ impl VirtualDevice {
         self.write_raw(&[syn])?;
 
         Ok(())
+    }
+
+    /// Read a new batch of events into the event buffer.
+    ///
+    /// Returns the number of events that were read, or an error.
+    pub fn fill_events(&mut self) -> io::Result<usize> {
+        unsafe { read_events_into_buffer(self.as_raw_fd(), &mut self.event_buf) }
+    }
+
+    /// Fetches and returns events from the kernel ring buffer.
+    ///
+    /// This will return events that have been send to the virtual device via its event node.
+    pub fn fetch_events(&mut self) -> io::Result<impl Iterator<Item = InputEvent> + '_> {
+        self.fill_events()?;
+        Ok(self.event_buf.drain(..).map(InputEvent))
     }
 }
 
