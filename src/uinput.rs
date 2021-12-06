@@ -27,9 +27,10 @@ impl<'a> VirtualDeviceBuilder<'a> {
     pub fn new() -> io::Result<Self> {
         let mut options = OpenOptions::new();
 
-        // Open in write-only, in nonblocking mode.
+        // Open in read-write, in nonblocking mode.
         let file = options
             .write(true)
+            .read(true)
             .custom_flags(O_NONBLOCK)
             .open(UINPUT_PATH)?;
 
